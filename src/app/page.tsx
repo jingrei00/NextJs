@@ -16,7 +16,7 @@ export default function Home() {
                             {/* Icon beside "GUI" */}
                             <span className="flex items-center gap-2">
                                 <Image
-                                    src="/images/icon2.png" // Path to your image
+                                    src="/images/icon.png" // Path to your image
                                     alt="Metasploit Logo"
                                     width={100} // Adjust the width of the icon
                                     height={100} // Adjust the height of the icon

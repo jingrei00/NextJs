@@ -21,7 +21,7 @@ export default function Navbar() {
 				{/* Logo with Image Icon and Header Text */}
 				<div className="flex items-center space-x-2">
 					<Image
-						src="/images/icon2.png" // Path to your image
+						src="/images/icon.png" // Path to your image
 						alt="Metasploit Logo"
 						width={90} // Adjust the width of the icon
 						height={10} // Adjust the height of the icon
