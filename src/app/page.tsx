@@ -27,7 +27,7 @@ export default function Home() {
 
                         {/* Paragraph beneath "Metasploit GUI" */}
                         <p className="mt-8 text-lg font-medium text-gray-500 sm:text-xl max-w-prose">
-                            The world’s most used penetration testing framework. Knowledge is power, especially when it’s shared. A collaboration between the open source community and Rapid7, Metasploit helps security teams do more than just verify vulnerabilities, manage security assessments, and improve security awareness; it empowers and arms defenders to always stay one step (or two) ahead of the game.
+                            Company’s most used penetration testing framework. Knowledge is power, especially when it’s shared. A collaboration between the open source community and Rapid7, MemeSploit helps security teams do more than just verify vulnerabilities, manage security assessments, and improve security awareness; it empowers and arms defenders to always stay one step (or two) ahead of the game.
                         </p>
 
                         <div className="mt-10 flex items-center justify-center sm:justify-start gap-x-6">
