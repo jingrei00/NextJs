@@ -1,121 +1,83 @@
-import Image from 'next/image';
+"use client";
+import { useState, useEffect } from "react";
+import { FaFacebook, FaTwitter, FaInstagram } from "react-icons/fa";
+import { IoMenu, IoClose } from "react-icons/io5";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image"; // Importing Image component from Next.js
 
 export default function Navbar() {
+	const [isOpen, setIsOpen] = useState(false);
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	if (!mounted) return null; // Prevents hydration errors in Next.js
+
 	return (
-		<nav className="bg-gray-800">
-			<div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
-				<div className="relative flex h-16 items-center justify-between">
-					<div className="absolute inset-y-0 left-0 flex items-center sm:hidden">
-						{/* Mobile menu button*/}
-						<button
-							type="button"
-							className="relative inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-700 hover:text-white focus:ring-2 focus:ring-white focus:outline-hidden focus:ring-inset"
-							aria-controls="mobile-menu"
-							aria-expanded="false">
-							<span className="absolute -inset-0.5" />
-							<span className="sr-only">Open main menu</span>
-							{/*
-      Icon when menu is closed.
-
-      Menu open: "hidden", Menu closed: "block"
-    */}
-							<svg
-								className="block size-6"
-								fill="none"
-								viewBox="0 0 24 24"
-								strokeWidth="1.5"
-								stroke="currentColor"
-								aria-hidden="true"
-								data-slot="icon">
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-								/>
-							</svg>
-							{/*
-      Icon when menu is open.
-
-      Menu open: "block", Menu closed: "hidden"
-    */}
-							<svg
-								className="hidden size-6"
-								fill="none"
-								viewBox="0 0 24 24"
-								strokeWidth="1.5"
-								stroke="currentColor"
-								aria-hidden="true"
-								data-slot="icon">
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M6 18 18 6M6 6l12 12"
-								/>
-							</svg>
-						</button>
-					</div>
-					<div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
-						<div className="flex shrink-0 items-center">
-							<Image src="/images/logo.png" alt="Metasploit" width={60} height={30} className="mb-4" />
-						</div>
-						<div className="hidden sm:ml-6 sm:block">
-							<div className="flex space-x-4">
-								{/* Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" */}
-								<a
-									href="#"
-									className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white"
-									aria-current="page">
-									Overview
-								</a>
-								<a
-									href="#"
-									className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
-									Dashboard
-								</a>
-								<a
-									href="#"
-									className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
-									Metasploit Scan
-								</a>
-								<a
-									href="#"
-									className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
-									Report
-								</a>
-							</div>
-						</div>
-					</div>
+		<nav className="bg-gray-600 text-white py-4 shadow-lg">
+			<div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
+				{/* Logo with Image Icon and Header Text */}
+				<div className="flex items-center space-x-2">
+					<Image
+						src="/images/icon2.png" // Path to your image
+						alt="Metasploit Logo"
+						width={90} // Adjust the width of the icon
+						height={10} // Adjust the height of the icon
+						className="rounded-full" // Optional: gives the image a circular shape
+					/>
 				</div>
-			</div>
-			{/* Mobile menu, show/hide based on menu state. */}
-			<div
-				className="sm:hidden"
-				id="mobile-menu">
-				<div className="space-y-1 px-2 pt-2 pb-3">
-					{/* Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" */}
-					<a
-						href="#"
-						className="block rounded-md bg-gray-900 px-3 py-2 text-base font-medium text-white"
-						aria-current="page">
-						Overview
-					</a>
-					<a
-						href="#"
-						className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
-						Dashboard
-					</a>
-					<a
-						href="#"
-						className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
-						Metasploit Scan
-					</a>
-					<a
-						href="#"
-						className="block rounded-md px-3 py-2 text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white">
-						Report
-					</a>
+
+				{/* Desktop Navigation */}
+				<div className="hidden md:flex space-x-8">
+					<a href="#" className="text-gray-400 hover:text-white transition-all duration-200">Home</a>
+					<a href="#about" className="text-gray-400 hover:text-white transition-all duration-200">About</a>
+					<a href="#services" className="text-gray-400 hover:text-white transition-all duration-200">Services</a>
+					<a href="#contact" className="text-gray-400 hover:text-white transition-all duration-200">Contact</a>
 				</div>
+
+				{/* Social Icons (Desktop) */}
+				<div className="hidden md:flex space-x-4">
+					<a href="#" className="text-gray-400 hover:text-white transition-all duration-200"><FaFacebook size={20} /></a>
+					<a href="#" className="text-gray-400 hover:text-white transition-all duration-200"><FaTwitter size={20} /></a>
+					<a href="#" className="text-gray-400 hover:text-white transition-all duration-200"><FaInstagram size={20} /></a>
+				</div>
+
+				{/* Mobile Menu Button */}
+				<button
+					onClick={() => setIsOpen(!isOpen)}
+					className="md:hidden focus:outline-none transition-all duration-300"
+					aria-label="Toggle Menu"
+				>
+					{isOpen ? <IoClose size={28} className="text-white" /> : <IoMenu size={28} className="text-white" />}
+				</button>
 			</div>
-		</nav>
+
+			{/* ✅ Mobile Navigation (Animated & Responsive) */}
+			<AnimatePresence>
+				{isOpen && (
+					<motion.div
+						initial={{ opacity: 0, y: -20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						transition={{ duration: 0.3 }}
+						className="md:hidden bg-gray-800 text-center py-6 space-y-6 absolute top-16 left-0 w-full shadow-lg"
+					>
+						<a href="#" className="block text-gray-400 hover:text-white transition-all duration-200">Home</a>
+						<a href="#about" className="block text-gray-400 hover:text-white transition-all duration-200">About</a>
+						<a href="#services" className="block text-gray-400 hover:text-white transition-all duration-200">Services</a>
+						<a href="#contact" className="block text-gray-400 hover:text-white transition-all duration-200">Contact</a>
+
+						{/* Social Media (Mobile) */}
+						<div className="flex justify-center space-x-4 pt-6">
+							<a href="#" className="text-gray-400 hover:text-white transition-all duration-200"><FaFacebook size={20} /></a>
+							<a href="#" className="text-gray-400 hover:text-white transition-all duration-200"><FaTwitter size={20} /></a>
+							<a href="#" className="text-gray-400 hover:text-white transition-all duration-200"><FaInstagram size={20} /></a>
+						</div>
+					</motion.div>
+				)}
+			</AnimatePresence>
+		</nav >
 	);
 }
