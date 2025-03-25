@@ -28,7 +28,9 @@
 		"**/*.ts",
 		"**/*.tsx",
 		".next/types/**/*.ts",
-		"src/app/api/checkdb/route.js"
+		"src/app/api/checkdb/route.js",
+		"src/app/api/exploits/route.js",
+		"src/app/lib/dbConnect.js"
 	],
 	"exclude": ["node_modules"]
 }
