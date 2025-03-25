@@ -1,133 +1,90 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 
-interface FormErrors {
-    exploit?: string;
-    ip?: string;
-    port?: string;
-    payload?: string;
-    lhost?: string;
-    lport?: string;
-    os?: string;
-    arch?: string;
-    retries?: string;
-}
+export default function ExploitForm() {
+    const [exploits, setExploits] = useState<{ _id: string; name: string; cve: string }[]>([]);
+    const [selectedExploit, setSelectedExploit] = useState("");
+    const [ipAddress, setIpAddress] = useState("");
+    const [port, setPort] = useState("");
+    const [payload, setPayload] = useState("");
+    const [lhost, setLhost] = useState("");
+    const [lport, setLport] = useState("");
+    const [targetOS, setTargetOS] = useState("");
+    const [targetArch, setTargetArch] = useState("");
+    const [retries, setRetries] = useState("");
+    const [message, setMessage] = useState("");
+    const [cveInput, setCveInput] = useState(""); // For CVE number input
 
-export default function Home() {
-    const [selectedExploit, setSelectedExploit] = useState<string>("");
-    const [ipAddress, setIpAddress] = useState<string>("");
-    const [port, setPort] = useState<string>("");
-    const [payload, setPayload] = useState<string>("");
-    const [lhost, setLhost] = useState<string>("");
-    const [lport, setLport] = useState<string>("");
-    const [targetOS, setTargetOS] = useState<string>("");
-    const [targetArch, setTargetArch] = useState<string>("");
-    const [retries, setRetries] = useState<string>("");
-    const [errors, setErrors] = useState<FormErrors>({});
+    useEffect(() => {
+        const fetchExploits = async () => {
+            const res = await fetch("/api/exploits");
+            const data = await res.json();
+            if (res.ok) {
+                setExploits(data);
+            } else {
+                setMessage("Error fetching exploits");
+            }
+        };
 
-    // Example exploit options
-    const exploits = [
-        { value: "ms17_010", label: "MS17-010 EternalBlue" },
-        { value: "apache_struts", label: "Apache Struts 2 RCE" },
-        { value: "shellshock", label: "Shellshock Bash Vulnerability" },
-        { value: "bluekeep", label: "BlueKeep RDP Vulnerability" },
-        { value: "heartbleed", label: "Heartbleed OpenSSL Vulnerability" },
-        { value: "dirty_cow", label: "Dirty COW Privilege Escalation" },
-        { value: "poodle", label: "POODLE SSL Vulnerability" },
-        { value: "sql_injection", label: "SQL Injection Vulnerability" },
-    ];
+        fetchExploits();
+    }, []);
 
-    // Example payload options
-    const payloads = [
-        { value: "reverse_tcp", label: "Reverse TCP Shell" },
-        { value: "meterpreter", label: "Meterpreter Shell" },
-        { value: "cmd_shell", label: "Command Shell" },
-        { value: "bind_tcp", label: "Bind TCP Shell" },
-    ];
+    useEffect(() => {
+        // Filter the exploits based on the CVE number entered
+        if (cveInput) {
+            const matchingExploit = exploits.find(exploit => exploit.cve === cveInput);
+            if (matchingExploit) {
+                setSelectedExploit(matchingExploit.name);
+            } else {
+                setSelectedExploit(""); // Reset if no match
+            }
+        }
+    }, [cveInput, exploits]);
 
-    // Example OS and architecture options
-    const operatingSystems = [
-        { value: "linux", label: "Linux" },
-        { value: "windows", label: "Windows" },
-        { value: "mac", label: "Mac OS" },
-    ];
-
-    const architectures = [
-        { value: "x86", label: "x86 (32-bit)" },
-        { value: "x64", label: "x64 (64-bit)" },
-    ];
-
-    // Validate form inputs
-    const validateForm = () => {
-        const newErrors: FormErrors = {};
-        const ipRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-        if (!selectedExploit) {
-            newErrors.exploit = "Please select an exploit from the list.";
-        }
-        if (!ipRegex.test(ipAddress)) {
-            newErrors.ip = "Please enter a valid IP address.";
-        }
-        if (!port || isNaN(Number(port)) || Number(port) <= 0 || Number(port) > 65535) {
-            newErrors.port = "Please enter a valid port number (1-65535).";
-        }
-        if (!payload) {
-            newErrors.payload = "Please select a payload.";
-        }
-        if (!lhost) {
-            newErrors.lhost = "Please enter a valid LHOST.";
-        }
-        if (!lport || isNaN(Number(lport)) || Number(lport) <= 0 || Number(lport) > 65535) {
-            newErrors.lport = "Please enter a valid LPORT number (1-65535).";
-        }
-        if (!targetOS) {
-            newErrors.os = "Please select a target OS.";
-        }
-        if (!targetArch) {
-            newErrors.arch = "Please select the target architecture.";
-        }
-        if (!retries || isNaN(Number(retries)) || Number(retries) < 1) {
-            newErrors.retries = "Please enter a valid number of retries.";
-        }
-
-        return newErrors;
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const validationErrors = validateForm();
-        if (Object.keys(validationErrors).length > 0) {
-            setErrors(validationErrors);
-            return;
+        setMessage("");
+        const exploitData = {
+            name: selectedExploit,
+            ip_address: ipAddress,
+            port,
+            payload,
+            lhost,
+            lport,
+            target_os: targetOS,
+            target_arch: targetArch,
+            retries,
+        };
+
+        const res = await fetch("/api/exploits", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(exploitData),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            setMessage("Exploit successfully added!");
+            setSelectedExploit("");
+            setIpAddress("");
+            setPort("");
+            setPayload("");
+            setLhost("");
+            setLport("");
+            setTargetOS("");
+            setTargetArch("");
+            setRetries("");
+            setCveInput(""); // Reset CVE input
+        } else {
+            setMessage(`Error: ${data.error}`);
         }
-
-        console.log("Exploit:", selectedExploit);
-        console.log("IP Address:", ipAddress);
-        console.log("Port:", port);
-        console.log("Payload:", payload);
-        console.log("LHOST:", lhost);
-        console.log("LPORT:", lport);
-        console.log("Target OS:", targetOS);
-        console.log("Target Arch:", targetArch);
-        console.log("Retries:", retries);
-
-        // Reset form
-        setSelectedExploit("");
-        setIpAddress("");
-        setPort("");
-        setPayload("");
-        setLhost("");
-        setLport("");
-        setTargetOS("");
-        setTargetArch("");
-        setRetries("");
-        setErrors({});
     };
 
     return (
         <div
-            className="relative isolate px-4 bg-gradient-to-tr from-[#A1C4FD] to-[#C2E9FB] min-h-screen"
+            className="min-h-screen flex items-center justify-center p-6"
             style={{
                 backgroundImage: "url('/images/wallpaper.jpg')",
                 backgroundSize: "cover",
@@ -135,9 +92,9 @@ export default function Home() {
                 backgroundAttachment: "fixed",
             }}
         >
-            <div className="mx-auto max-w-4xl py-16 sm:py-24 lg:py-32 px-4 flex flex-col items-center justify-center">
-                <div className="flex flex-col items-center text-center mb-8">
-                    <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight text-gray-200 flex items-center justify-center gap-4 mb-6">
+            <div className="bg-white w-full max-w-6xl p-8 rounded-lg shadow-lg">
+                <div className="text-center sm:text-left mb-8">
+                    <h1 className="text-5xl font-semibold tracking-tight text-gray-800 sm:text-7xl flex items-center gap-4 justify-center sm:justify-start">
                         <Image
                             src="/images/icon.png"
                             alt="Metasploit Logo"
@@ -147,197 +104,170 @@ export default function Home() {
                         />
                         MemeSploit
                     </h1>
-                    <p className="text-lg sm:text-xl text-gray-200">
-                        Select the exploit and configure the parameters to launch the attack.
-                    </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="w-full p-6 bg-white bg-opacity-80 rounded-xl shadow-lg">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
-                        {/* Exploit Selection */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="exploit" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Select Exploit:
-                            </label>
+                <div className="bg-gray-50 p-8 rounded-lg shadow-md">
+                    <h2 className="text-3xl font-bold text-center mb-6">Add New Exploit</h2>
+
+                    <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+                        {/* CVE Number */}
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">CVE Number</label>
+                            <input
+                                type="text"
+                                name="cve_number"
+                                value={cveInput}
+                                onChange={(e) => setCveInput(e.target.value)}
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter CVE number"
+                            />
+                        </div>
+
+                        {/* Select Exploit */}
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">Select Exploit</label>
                             <select
-                                id="exploit"
+                                name="exploit"
                                 value={selectedExploit}
                                 onChange={(e) => setSelectedExploit(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.exploit ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             >
-                                <option value="">--Select Exploit--</option>
+                                <option value="">Select an exploit</option>
                                 {exploits.map((exploit) => (
-                                    <option key={exploit.value} value={exploit.value}>
-                                        {exploit.label}
+                                    <option key={exploit._id} value={exploit.name}>
+                                        {exploit.name}
                                     </option>
                                 ))}
                             </select>
-                            {errors.exploit && <p className="text-red-500 text-sm">{errors.exploit}</p>}
                         </div>
+
+
 
                         {/* IP Address */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="ip" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Enter IP Address:
-                            </label>
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">IP Address</label>
                             <input
                                 type="text"
-                                id="ip"
+                                name="ip_address"
                                 value={ipAddress}
                                 onChange={(e) => setIpAddress(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.ip ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
-                                placeholder="Enter Target IP Address"
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             />
-                            {errors.ip && <p className="text-red-500 text-sm">{errors.ip}</p>}
                         </div>
 
-                        {/* Port Number */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="port" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Enter Port Number:
-                            </label>
+                        {/* Port */}
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">Port</label>
                             <input
                                 type="text"
-                                id="port"
+                                name="port"
                                 value={port}
                                 onChange={(e) => setPort(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.port ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
-                                placeholder="Enter Port Number"
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             />
-                            {errors.port && <p className="text-red-500 text-sm">{errors.port}</p>}
                         </div>
 
-                        {/* Payload Selection */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="payload" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Select Payload:
-                            </label>
-                            <select
-                                id="payload"
+                        {/* Payload */}
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">Payload</label>
+                            <input
+                                type="text"
+                                name="payload"
                                 value={payload}
                                 onChange={(e) => setPayload(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.payload ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
-                            >
-                                <option value="">--Select Payload--</option>
-                                {payloads.map((payloadOption) => (
-                                    <option key={payloadOption.value} value={payloadOption.value}>
-                                        {payloadOption.label}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.payload && <p className="text-red-500 text-sm">{errors.payload}</p>}
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
                         </div>
 
                         {/* LHOST */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="lhost" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Enter LHOST:
-                            </label>
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">LHOST</label>
                             <input
                                 type="text"
-                                id="lhost"
+                                name="lhost"
                                 value={lhost}
                                 onChange={(e) => setLhost(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.lhost ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
-                                placeholder="Enter LHOST for reverse shell"
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             />
-                            {errors.lhost && <p className="text-red-500 text-sm">{errors.lhost}</p>}
                         </div>
 
                         {/* LPORT */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="lport" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Enter LPORT:
-                            </label>
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">LPORT</label>
                             <input
                                 type="text"
-                                id="lport"
+                                name="lport"
                                 value={lport}
                                 onChange={(e) => setLport(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.lport ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
-                                placeholder="Enter LPORT for reverse shell"
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             />
-                            {errors.lport && <p className="text-red-500 text-sm">{errors.lport}</p>}
                         </div>
 
                         {/* Target OS */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="os" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Target OS:
-                            </label>
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">Target OS</label>
                             <select
-                                id="os"
+                                name="target_os"
                                 value={targetOS}
                                 onChange={(e) => setTargetOS(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.os ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             >
-                                <option value="">--Select OS--</option>
-                                {operatingSystems.map((os) => (
-                                    <option key={os.value} value={os.value}>
-                                        {os.label}
-                                    </option>
-                                ))}
+                                <option value="">Select OS</option>
+                                <option value="linux">Linux</option>
+                                <option value="windows">Windows</option>
+                                <option value="mac">Mac OS</option>
                             </select>
-                            {errors.os && <p className="text-red-500 text-sm">{errors.os}</p>}
                         </div>
 
                         {/* Target Architecture */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="arch" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Target Architecture:
-                            </label>
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">Target Architecture</label>
                             <select
-                                id="arch"
+                                name="target_arch"
                                 value={targetArch}
                                 onChange={(e) => setTargetArch(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.arch ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             >
-                                <option value="">--Select Architecture--</option>
-                                {architectures.map((arch) => (
-                                    <option key={arch.value} value={arch.value}>
-                                        {arch.label}
-                                    </option>
-                                ))}
+                                <option value="">Select Architecture</option>
+                                <option value="x86">x86 (32-bit)</option>
+                                <option value="x64">x64 (64-bit)</option>
                             </select>
-                            {errors.arch && <p className="text-red-500 text-sm">{errors.arch}</p>}
                         </div>
 
-                        {/* Retry Count */}
-                        <div className="flex flex-col gap-2">
-                            <label htmlFor="retries" className="text-base sm:text-lg text-gray-800 font-medium">
-                                Enter Retry Count:
-                            </label>
+                        {/* Retries */}
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium">Retries</label>
                             <input
                                 type="text"
-                                id="retries"
+                                name="retries"
                                 value={retries}
                                 onChange={(e) => setRetries(e.target.value)}
-                                className={`p-2 sm:p-3 rounded-md text-gray-900 border ${errors.retries ? "border-red-500" : "border-gray-300"
-                                    } shadow-sm focus:ring-2 focus:ring-indigo-500 w-full`}
-                                placeholder="Enter Retry Count for Attack"
+                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                required
                             />
-                            {errors.retries && <p className="text-red-500 text-sm">{errors.retries}</p>}
                         </div>
-                    </div>
 
-                    {/* Submit Button */}
-                    <div className="flex justify-center mt-6">
-                        <button
-                            type="submit"
-                            className="bg-indigo-600 text-white py-3 px-6 rounded-md shadow-md hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 transition duration-300"
-                        >
-                            Launch Exploit
-                        </button>
-                    </div>
-                </form>
+                        {/* Submit Button */}
+                        <div className="col-span-1 sm:col-span-2">
+                            <button
+                                type="submit"
+                                className="w-full bg-blue-600 text-white py-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-300"
+                            >
+                                Submit Exploit
+                            </button>
+                        </div>
+
+                        {message && <p className="mt-4 text-center text-green-600">{message}</p>}
+                    </form>
+                </div>
             </div>
         </div>
     );
