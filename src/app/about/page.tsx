@@ -1,273 +1,333 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
+import Select from "react-select";
+
+// Reusable Form Field Component
+const FormField = ({ label, value, onChange, placeholder }: any) => (
+    <div>
+        <label className="block text-sm font-medium mb-2">{label}</label>
+        <input
+            type="text"
+            value={value}
+            onChange={onChange}
+            className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={placeholder}
+            required
+        />
+    </div>
+);
 
 export default function ExploitForm() {
-    const [exploits, setExploits] = useState<{ _id: string; name: string; cve: string }[]>([]);
-    const [selectedExploit, setSelectedExploit] = useState("");
-    const [ipAddress, setIpAddress] = useState("");
-    const [port, setPort] = useState("");
-    const [payload, setPayload] = useState("");
-    const [lhost, setLhost] = useState("");
-    const [lport, setLport] = useState("");
-    const [targetOS, setTargetOS] = useState("");
-    const [targetArch, setTargetArch] = useState("");
-    const [retries, setRetries] = useState("");
-    const [message, setMessage] = useState("");
-    const [cveInput, setCveInput] = useState(""); // For CVE number input
+    const [isClient, setIsClient] = useState(false);
+    const [exploits, setExploits] = useState<any[]>([]);
+    const [selectedExploits, setSelectedExploits] = useState<any[]>([]);
+    const [rhosts, setRhosts] = useState<string[]>([""]);
+    const [rports, setRports] = useState<string[]>(["80"]);
+    const [payloads, setPayloads] = useState<string[]>([]);
+    const [platform, setPlatform] = useState<string>("Unix");
+    const [arch, setArch] = useState<string>("cmd");
+    const [autofilterPorts, setAutofilterPorts] = useState<number[]>([80, 443]);
+    const [autofilterServices, setAutofilterServices] = useState<string[]>(["http", "https"]);
+    const [threads, setThreads] = useState<number>(1);
+    const [message, setMessage] = useState<string>("");
+    const [loading, setLoading] = useState<boolean>(false);
 
+    // Mark component as client-only after mounting
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    // Fetch exploits once and store in state
     useEffect(() => {
         const fetchExploits = async () => {
-            const res = await fetch("/api/exploits");
-            const data = await res.json();
-            if (res.ok) {
-                setExploits(data);
-            } else {
+            try {
+                const res = await fetch("/api/exploits");
+                const data = await res.json();
+                if (res.ok) {
+                    setExploits(data);
+                } else {
+                    setMessage("Error fetching exploits");
+                }
+            } catch (error) {
                 setMessage("Error fetching exploits");
             }
         };
-
         fetchExploits();
-    }, []);
+    }, []); // Only fetch once, not on every re-render
 
+    // Update form fields based on selected exploit
     useEffect(() => {
-        // Filter the exploits based on the CVE number entered
-        if (cveInput) {
-            const matchingExploit = exploits.find(exploit => exploit.cve === cveInput);
-            if (matchingExploit) {
-                setSelectedExploit(matchingExploit.name);
-            } else {
-                setSelectedExploit(""); // Reset if no match
-            }
+        if (selectedExploits.length > 0) {
+            const firstExploit = selectedExploits[0];
+            setPlatform(firstExploit.platform || "Unix");
+            setArch(firstExploit.arch || "cmd");
+            setAutofilterPorts([80, 443, 8080, 8443]);
+            setAutofilterServices(["http", "https"]);
+            setPayloads(selectedExploits.map((exp) => exp.fullname || ""));
         }
-    }, [cveInput, exploits]);
+    }, [selectedExploits]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    // Handle form submission
+    const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         setMessage("");
+        setLoading(true);
+
         const exploitData = {
-            name: selectedExploit,
-            ip_address: ipAddress,
-            port,
-            payload,
-            lhost,
-            lport,
-            target_os: targetOS,
-            target_arch: targetArch,
-            retries,
+            exploits: selectedExploits.map((exp) => exp.name),
+            rhosts: rhosts.map(parseRhost),
+            rports,
+            payloads,
+            platform,
+            arch,
+            autofilter_ports: autofilterPorts,
+            autofilter_services: autofilterServices,
+            threads,
         };
 
-        const res = await fetch("/api/exploits", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(exploitData),
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-            setMessage("Exploit successfully added!");
-            setSelectedExploit("");
-            setIpAddress("");
-            setPort("");
-            setPayload("");
-            setLhost("");
-            setLport("");
-            setTargetOS("");
-            setTargetArch("");
-            setRetries("");
-            setCveInput(""); // Reset CVE input
-        } else {
-            setMessage(`Error: ${data.error}`);
+        try {
+            const res = await fetch("/api/exploits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(exploitData),
+            });
+            const data = await res.json();
+            setLoading(false);
+            if (res.ok) {
+                setMessage("Exploit successfully added!");
+                resetForm();
+            } else {
+                setMessage(`Error: ${data.error}`);
+            }
+        } catch (error) {
+            setLoading(false);
+            setMessage("Submission failed. Please try again.");
         }
+    }, [rhosts, rports, payloads, platform, arch, autofilterPorts, autofilterServices, selectedExploits, threads]);
+
+    const resetForm = () => {
+        setSelectedExploits([]);
+        setRhosts([""]);
+        setRports(["80"]);
+        setPayloads([]);
+        setPlatform("Unix");
+        setArch("cmd");
+        setAutofilterPorts([80, 443]);
+        setAutofilterServices(["http", "https"]);
+        setThreads(1);
     };
 
+    // Parse RHOST input into an array of IP addresses
+    const parseRhost = (rhost: string) => {
+        const ips: string[] = [];
+        const ranges = rhost.split(",");
+        ranges.forEach((range) => {
+            if (range.includes("-")) {
+                const [startIp, endIp] = range.split("-");
+                const startParts = startIp.split(".").map(Number);
+                const endParts = endIp.split(".").map(Number);
+                if (startParts.length === 4 && endParts.length === 4) {
+                    for (let i = startParts[3]; i <= endParts[3]; i++) {
+                        ips.push(`${startParts[0]}.${startParts[1]}.${startParts[2]}.${i}`);
+                    }
+                }
+            } else {
+                ips.push(range.trim());
+            }
+        });
+        return ips;
+    };
+
+    // Functions to add or remove dynamic input fields
+    const addField = (fieldType: "rhosts" | "rports" | "payloads") => {
+        if (fieldType === "rhosts") setRhosts([...rhosts, ""]);
+        if (fieldType === "rports") setRports([...rports, "80"]);
+        if (fieldType === "payloads") setPayloads([...payloads, ""]);
+    };
+
+    const removeField = (index: number, fieldType: "rhosts" | "rports" | "payloads") => {
+        if (fieldType === "rhosts") setRhosts(rhosts.filter((_, i) => i !== index));
+        if (fieldType === "rports") setRports(rports.filter((_, i) => i !== index));
+        if (fieldType === "payloads") setPayloads(payloads.filter((_, i) => i !== index));
+    };
+
+    // Ensure that the form is not rendered until the component is mounted on the client
+    if (!isClient) return null;
+
     return (
-        <div
-            className="min-h-screen flex items-center justify-center p-6"
-            style={{
-                backgroundImage: "url('/images/wallpaper.jpg')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundAttachment: "fixed",
-            }}
-        >
-            <div className="bg-white w-full max-w-6xl p-8 rounded-lg shadow-lg">
-                <div className="text-center sm:text-left mb-8">
-                    <h1 className="text-5xl font-semibold tracking-tight text-gray-800 sm:text-7xl flex items-center gap-4 justify-center sm:justify-start">
-                        <Image
-                            src="/images/icon.png"
-                            alt="Metasploit Logo"
-                            width={100}
-                            height={100}
-                            className="rounded-full"
+        <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-r from-gray-900 to-black text-green-400 font-mono">
+            <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl p-8 space-y-6">
+                <div className="text-center">
+                    <h1 className="text-4xl font-extrabold">MemeSploit Exploit Management</h1>
+                    <p className="mt-2 text-lg">Configure your exploit details below.</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Exploit Selection (Multiple) */}
+                    <div>
+                        <label className="block text-sm font-medium mb-2">Select Exploits</label>
+                        <Select
+                            isMulti
+                            options={exploits.map((exploit) => ({ label: exploit.name, value: exploit._id }))}
+                            value={selectedExploits.map((exploit) => ({ label: exploit.name, value: exploit._id }))}
+                            onChange={(selected) => {
+                                setSelectedExploits(
+                                    selected.map((item) =>
+                                        exploits.find((exp) => exp._id === item.value)
+                                    )
+                                );
+                            }}
+                            className="mt-2 p-4 border border-green-500 rounded-md focus:ring-2 focus:ring-green-500 w-full"
                         />
-                        MemeSploit
-                    </h1>
-                </div>
+                    </div>
 
-                <div className="bg-gray-50 p-8 rounded-lg shadow-md">
-                    <h2 className="text-3xl font-bold text-center mb-6">Add New Exploit</h2>
+                    {/* Threads Field */}
+                    <div>
+                        <label className="block text-sm font-medium text-green-200">No. of Threads (Number of shells running)</label>
+                        <input
+                            type="number"
+                            value={threads}
+                            onChange={(e) => setThreads(Number(e.target.value))}
+                            className="w-full p-4 border border-green-500 rounded-md shadow-sm focus:ring-2 focus:ring-green-500"
+                            min={1}
+                        />
+                    </div>
 
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
-                        {/* CVE Number */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">CVE Number</label>
-                            <input
-                                type="text"
-                                name="cve_number"
-                                value={cveInput}
-                                onChange={(e) => setCveInput(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Enter CVE number"
-                            />
+                    {/* Dynamic RHOST Fields */}
+                    <div>
+                        <label className="block text-sm font-medium text-green-200">Target IP Address (RHOST)</label>
+                        {rhosts.map((rhost, index) => (
+                            <div key={index} className="flex items-center space-x-2 mb-2">
+                                <input
+                                    type="text"
+                                    value={rhost}
+                                    onChange={(e) =>
+                                        setRhosts(rhosts.map((item, i) => (i === index ? e.target.value : item)))
+                                    }
+                                    className="p-4 border border-green-500 rounded-md shadow-sm w-full"
+                                    placeholder="e.g. 192.168.1.1 or 192.168.1.1-192.168.1.100"
+                                    required
+                                />
+                                {rhosts.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeField(index, "rhosts")}
+                                        className="text-red-500 hover:text-red-700"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() => addField("rhosts")}
+                            className="text-blue-500 hover:text-blue-700"
+                        >
+                            Add RHOST
+                        </button>
+                    </div>
+
+                    {/* Dynamic RPORT Fields */}
+                    <div>
+                        <label className="block text-sm font-medium text-green-200">Target Port (RPORT)</label>
+                        {rports.map((rport, index) => (
+                            <div key={index} className="flex items-center space-x-2 mb-2">
+                                <input
+                                    type="text"
+                                    value={rport}
+                                    onChange={(e) =>
+                                        setRports(rports.map((item, i) => (i === index ? e.target.value : item)))
+                                    }
+                                    className="p-4 border border-green-500 rounded-md shadow-sm w-full"
+                                    placeholder="e.g. 80"
+                                    required
+                                />
+                                {rports.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeField(index, "rports")}
+                                        className="text-red-500 hover:text-red-700"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() => addField("rports")}
+                            className="text-blue-500 hover:text-blue-700"
+                        >
+                            Add RPORT
+                        </button>
+                    </div>
+
+                    {/* Dynamic Payload Fields */}
+                    <div>
+                        <label className="block text-sm font-medium text-green-200">Select Payloads</label>
+                        {payloads.map((payload, index) => (
+                            <div key={index} className="flex items-center space-x-2 mb-2">
+                                <input
+                                    type="text"
+                                    value={payload}
+                                    onChange={(e) =>
+                                        setPayloads(payloads.map((item, i) => (i === index ? e.target.value : item)))
+                                    }
+                                    className="p-4 border border-green-500 rounded-md shadow-sm w-full"
+                                    placeholder="e.g. windows/meterpreter/reverse_tcp"
+                                    required
+                                />
+                                {payloads.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeField(index, "payloads")}
+                                        className="text-red-500 hover:text-red-700"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() => addField("payloads")}
+                            className="text-blue-500 hover:text-blue-700"
+                        >
+                            Add Payload
+                        </button>
+                    </div>
+
+                    {/* Summary of selected settings */}
+                    <div className="mt-4 text-lg font-semibold">
+                        <p>Selected Exploits: {selectedExploits.map((exp) => exp.name).join(", ")}</p>
+                    </div>
+
+                    {/* Form Submission */}
+                    <div className="flex items-center justify-center space-x-4">
+                        <button
+                            type="submit"
+                            className="bg-green-600 text-white p-4 rounded-lg shadow-md hover:bg-green-700"
+                            disabled={loading}
+                        >
+                            {loading ? "Submitting..." : "Exploit the target!!"}
+                        </button>
+                    </div>
+
+                    {/* Message */}
+                    {message && (
+                        <div
+                            className={`text-lg font-bold ${message.includes("Error") ? "text-red-500" : "text-green-500"
+                                }`}
+                        >
+                            {message}
                         </div>
-
-                        {/* Select Exploit */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">Select Exploit</label>
-                            <select
-                                name="exploit"
-                                value={selectedExploit}
-                                onChange={(e) => setSelectedExploit(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            >
-                                <option value="">Select an exploit</option>
-                                {exploits.map((exploit) => (
-                                    <option key={exploit._id} value={exploit.name}>
-                                        {exploit.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-
-
-                        {/* IP Address */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">IP Address</label>
-                            <input
-                                type="text"
-                                name="ip_address"
-                                value={ipAddress}
-                                onChange={(e) => setIpAddress(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-
-                        {/* Port */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">Port</label>
-                            <input
-                                type="text"
-                                name="port"
-                                value={port}
-                                onChange={(e) => setPort(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-
-                        {/* Payload */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">Payload</label>
-                            <input
-                                type="text"
-                                name="payload"
-                                value={payload}
-                                onChange={(e) => setPayload(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-
-                        {/* LHOST */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">LHOST</label>
-                            <input
-                                type="text"
-                                name="lhost"
-                                value={lhost}
-                                onChange={(e) => setLhost(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-
-                        {/* LPORT */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">LPORT</label>
-                            <input
-                                type="text"
-                                name="lport"
-                                value={lport}
-                                onChange={(e) => setLport(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-
-                        {/* Target OS */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">Target OS</label>
-                            <select
-                                name="target_os"
-                                value={targetOS}
-                                onChange={(e) => setTargetOS(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            >
-                                <option value="">Select OS</option>
-                                <option value="linux">Linux</option>
-                                <option value="windows">Windows</option>
-                                <option value="mac">Mac OS</option>
-                            </select>
-                        </div>
-
-                        {/* Target Architecture */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">Target Architecture</label>
-                            <select
-                                name="target_arch"
-                                value={targetArch}
-                                onChange={(e) => setTargetArch(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            >
-                                <option value="">Select Architecture</option>
-                                <option value="x86">x86 (32-bit)</option>
-                                <option value="x64">x64 (64-bit)</option>
-                            </select>
-                        </div>
-
-                        {/* Retries */}
-                        <div className="col-span-1">
-                            <label className="block text-sm font-medium">Retries</label>
-                            <input
-                                type="text"
-                                name="retries"
-                                value={retries}
-                                onChange={(e) => setRetries(e.target.value)}
-                                className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-
-                        {/* Submit Button */}
-                        <div className="col-span-1 sm:col-span-2">
-                            <button
-                                type="submit"
-                                className="w-full bg-blue-600 text-white py-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-300"
-                            >
-                                Submit Exploit
-                            </button>
-                        </div>
-
-                        {message && <p className="mt-4 text-center text-green-600">{message}</p>}
-                    </form>
-                </div>
+                    )}
+                </form>
             </div>
         </div>
     );

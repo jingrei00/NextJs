@@ -18,6 +18,7 @@ const Navbar: React.FC = () => {
 						alt="Metasploit Logo"
 						width={90} // Adjust the width of the icon
 						height={90} // Adjust the height of the icon
+						priority={true} // {false} | {true}
 						className="rounded-full" // Optional: gives the image a circular shape
 					/>
 				</div>

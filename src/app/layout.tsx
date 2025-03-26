@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <html lang="en">
             <body>
                 <Navbar />
-                <main>{children}</main> {/* Shows the current page */}
+                <main>{children}</main>
                 <Footer />
             </body>
         </html>
