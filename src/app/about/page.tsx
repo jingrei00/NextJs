@@ -39,7 +39,7 @@ export default function ExploitForm() {
     const [exploits, setExploits] = useState<any[]>([]);
     const [selectedExploits, setSelectedExploits] = useState<any[]>([]);
     const [selectedPayloads, setSelectedPayloads] = useState<any[]>([]);
-    const [targets, setTargets] = useState<string[]>(["192.168.1.1:80"]);
+    const [targets, setTargets] = useState<string[]>(["192.168.1.1"]);
     const [cve, setCve] = useState("");
     const [threads, setThreads] = useState(1);
     const [message, setMessage] = useState(" ");
