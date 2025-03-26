@@ -32,6 +32,8 @@ export default function Home() {
                             Do you have what it takes to stay two steps ahead of the game?
                         </p>
 
+                        console.log(process.env.MONGODB_URI);
+
                         <div className="mt-10 flex items-center justify-center sm:justify-start gap-x-6">
                             <Link
                                 href="/about"
