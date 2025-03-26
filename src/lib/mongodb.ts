@@ -1,10 +1,16 @@
 import { MongoClient } from 'mongodb';
 
-// Ensure that the MongoDB URI is provided in the environment variables
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGODB_URI?.trim(); // Add .trim()
 
 if (!uri) {
-	throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
+	throw new Error('MONGODB_URI not defined');
+}
+
+// Add explicit URI validation
+if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+	throw new Error(
+		`Invalid MongoDB URI: must start with mongodb:// or mongodb+srv://`
+	);
 }
 
 const options = { appName: 'devrel.template.nextjs' };

@@ -57,7 +57,7 @@ export default function ExploitForm() {
             }
         };
         fetchExploits();
-    }, []); // Only fetch once, not on every re-render
+    }, []);
 
     // Update form fields based on selected exploit
     useEffect(() => {
@@ -144,15 +144,15 @@ export default function ExploitForm() {
 
     // Functions to add or remove dynamic input fields
     const addField = (fieldType: "rhosts" | "rports" | "payloads") => {
-        if (fieldType === "rhosts") setRhosts([...rhosts, ""]);
-        if (fieldType === "rports") setRports([...rports, "80"]);
-        if (fieldType === "payloads") setPayloads([...payloads, ""]);
+        if (fieldType === "rhosts") setRhosts(prev => [...prev, ""]);
+        if (fieldType === "rports") setRports(prev => [...prev, "80"]);
+        if (fieldType === "payloads") setPayloads(prev => [...prev, ""]);
     };
 
     const removeField = (index: number, fieldType: "rhosts" | "rports" | "payloads") => {
-        if (fieldType === "rhosts") setRhosts(rhosts.filter((_, i) => i !== index));
-        if (fieldType === "rports") setRports(rports.filter((_, i) => i !== index));
-        if (fieldType === "payloads") setPayloads(payloads.filter((_, i) => i !== index));
+        if (fieldType === "rhosts") setRhosts(prev => prev.filter((_, i) => i !== index));
+        if (fieldType === "rports") setRports(prev => prev.filter((_, i) => i !== index));
+        if (fieldType === "payloads") setPayloads(prev => prev.filter((_, i) => i !== index));
     };
 
     // Ensure that the form is not rendered until the component is mounted on the client
@@ -176,9 +176,7 @@ export default function ExploitForm() {
                             value={selectedExploits.map((exploit) => ({ label: exploit.name, value: exploit._id }))}
                             onChange={(selected) => {
                                 setSelectedExploits(
-                                    selected.map((item) =>
-                                        exploits.find((exp) => exp._id === item.value)
-                                    )
+                                    selected.map((item) => exploits.find((exp) => exp._id === item.value))
                                 );
                             }}
                             className="mt-2 p-4 border border-green-500 rounded-md focus:ring-2 focus:ring-green-500 w-full"
@@ -311,19 +309,16 @@ export default function ExploitForm() {
                     <div className="flex items-center justify-center space-x-4">
                         <button
                             type="submit"
-                            className="bg-green-600 text-white p-4 rounded-lg shadow-md hover:bg-green-700"
                             disabled={loading}
+                            className="py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-500"
                         >
-                            {loading ? "Submitting..." : "Exploit the target!!"}
+                            {loading ? "Submitting..." : "Submit"}
                         </button>
                     </div>
 
-                    {/* Message */}
+                    {/* Error/SUCCESS Message */}
                     {message && (
-                        <div
-                            className={`text-lg font-bold ${message.includes("Error") ? "text-red-500" : "text-green-500"
-                                }`}
-                        >
+                        <div className={`mt-4 text-lg font-semibold ${message.includes("Error") ? "text-red-500" : "text-green-500"}`}>
                             {message}
                         </div>
                     )}
