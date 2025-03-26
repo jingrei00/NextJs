@@ -1,91 +1,94 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
+import { useState, useEffect, useCallback } from "react";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import Image from "next/image";
-import Select from "react-select";
-
-// Reusable Form Field Component
-const FormField = ({ label, value, onChange, placeholder }: any) => (
-    <div>
-        <label className="block text-sm font-medium mb-2">{label}</label>
+// Input Field Component
+const InputFieldComponent = ({ label, value, onChange, placeholder, type = "text" }: any) => (
+    <div className="w-full">
+        <label className="block text-sm font-medium mb-2 text-gray-300">{label}</label>
         <input
-            type="text"
+            type={type}
             value={value}
             onChange={onChange}
-            className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border border-gray-600 rounded-lg shadow-sm bg-gray-700 text-white focus:ring-2 focus:ring-green-400"
             placeholder={placeholder}
-            required
         />
     </div>
 );
 
+// Select List Component for Multiple Options
+const SelectListComponent = ({ label, options, value, onChange }: any) => (
+    <div className="w-full">
+        <label className="block text-sm font-medium mb-2 text-gray-300">{label}</label>
+        <select
+            multiple
+            value={value}
+            onChange={onChange}
+            className="w-full p-2 border border-gray-600 rounded-lg shadow-sm bg-gray-700 text-white focus:ring-2 focus:ring-green-400"
+        >
+            {options.map((option: any, index: number) => (
+                <option key={index} value={option}>
+                    {option}
+                </option>
+            ))}
+        </select>
+    </div>
+);
+
 export default function ExploitForm() {
-    const [isClient, setIsClient] = useState(false);
     const [exploits, setExploits] = useState<any[]>([]);
     const [selectedExploits, setSelectedExploits] = useState<any[]>([]);
-    const [rhosts, setRhosts] = useState<string[]>([""]);
-    const [rports, setRports] = useState<string[]>(["80"]);
-    const [payloads, setPayloads] = useState<string[]>([]);
-    const [platform, setPlatform] = useState<string>("Unix");
-    const [arch, setArch] = useState<string>("cmd");
-    const [autofilterPorts, setAutofilterPorts] = useState<number[]>([80, 443]);
-    const [autofilterServices, setAutofilterServices] = useState<string[]>(["http", "https"]);
-    const [threads, setThreads] = useState<number>(1);
-    const [message, setMessage] = useState<string>("");
-    const [loading, setLoading] = useState<boolean>(false);
+    const [selectedPayloads, setSelectedPayloads] = useState<any[]>([]);
+    const [targets, setTargets] = useState<string[]>(["192.168.1.1:80"]);
+    const [cve, setCve] = useState("");
+    const [threads, setThreads] = useState(1);
+    const [message, setMessage] = useState(" ");
+    const [loading, setLoading] = useState(false);
 
-    // Mark component as client-only after mounting
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    // Fetch exploits once and store in state
+    // Fetch Exploits from the API
     useEffect(() => {
         const fetchExploits = async () => {
             try {
                 const res = await fetch("/api/exploits");
                 const data = await res.json();
-                if (res.ok) {
-                    setExploits(data);
-                } else {
-                    setMessage("Error fetching exploits");
-                }
-            } catch (error) {
+                if (res.ok) setExploits(data);
+                else setMessage("Error fetching exploits");
+            } catch {
                 setMessage("Error fetching exploits");
             }
         };
         fetchExploits();
     }, []);
 
-    // Update form fields based on selected exploit
-    useEffect(() => {
-        if (selectedExploits.length > 0) {
-            const firstExploit = selectedExploits[0];
-            setPlatform(firstExploit.platform || "Unix");
-            setArch(firstExploit.arch || "cmd");
-            setAutofilterPorts([80, 443, 8080, 8443]);
-            setAutofilterServices(["http", "https"]);
-            setPayloads(selectedExploits.map((exp) => exp.fullname || ""));
+    // Fetch Exploits based on CVE Number
+    const fetchCveDetails = async (cveNumber: string) => {
+        try {
+            const res = await fetch(`/api/exploits/${cveNumber}`);
+            const data = await res.json();
+            if (res.ok && data) {
+                const matchingExploits = exploits.filter(exp =>
+                    exp.references?.includes(cveNumber.trim().toUpperCase())
+                );
+                setSelectedExploits(matchingExploits);
+            } else {
+                setSelectedExploits([]);
+            }
+        } catch {
+            setSelectedExploits([]);
         }
-    }, [selectedExploits]);
+    };
 
-    // Handle form submission
-    const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    // Handle Form Submission
+    const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setMessage("");
         setLoading(true);
 
         const exploitData = {
-            exploits: selectedExploits.map((exp) => exp.name),
-            rhosts: rhosts.map(parseRhost),
-            rports,
-            payloads,
-            platform,
-            arch,
-            autofilter_ports: autofilterPorts,
-            autofilter_services: autofilterServices,
+            exploits: selectedExploits.map((exp: any) => exp.name),
+            cve,
+            targets,
+            payloads: selectedPayloads.map((payload: any) => payload.name),
             threads,
         };
 
@@ -97,232 +100,129 @@ export default function ExploitForm() {
             });
             const data = await res.json();
             setLoading(false);
-            if (res.ok) {
-                setMessage("Exploit successfully added!");
-                resetForm();
-            } else {
-                setMessage(`Error: ${data.error}`);
-            }
-        } catch (error) {
+            setMessage(res.ok ? "Exploits executed successfully!" : `Error: ${data.error}`);
+        } catch {
             setLoading(false);
             setMessage("Submission failed. Please try again.");
         }
-    }, [rhosts, rports, payloads, platform, arch, autofilterPorts, autofilterServices, selectedExploits, threads]);
+    }, [cve, threads, selectedExploits, selectedPayloads, targets]);
 
-    const resetForm = () => {
-        setSelectedExploits([]);
-        setRhosts([""]);
-        setRports(["80"]);
-        setPayloads([]);
-        setPlatform("Unix");
-        setArch("cmd");
-        setAutofilterPorts([80, 443]);
-        setAutofilterServices(["http", "https"]);
-        setThreads(1);
+    // Add a new target input field with unique ports
+    const addTarget = () => {
+        const newTarget = `192.168.1.1`; // Default port selection
+        if (!targets.includes(newTarget)) {
+            setTargets([...targets, newTarget]);
+        }
     };
 
-    // Parse RHOST input into an array of IP addresses
-    const parseRhost = (rhost: string) => {
-        const ips: string[] = [];
-        const ranges = rhost.split(",");
-        ranges.forEach((range) => {
-            if (range.includes("-")) {
-                const [startIp, endIp] = range.split("-");
-                const startParts = startIp.split(".").map(Number);
-                const endParts = endIp.split(".").map(Number);
-                if (startParts.length === 4 && endParts.length === 4) {
-                    for (let i = startParts[3]; i <= endParts[3]; i++) {
-                        ips.push(`${startParts[0]}.${startParts[1]}.${startParts[2]}.${i}`);
-                    }
-                }
-            } else {
-                ips.push(range.trim());
-            }
-        });
-        return ips;
+    // Handle Target Change with unique ports
+    const handleTargetChange = (index: number, value: string) => {
+        const newTargets = [...targets];
+        if (!newTargets.includes(value)) {
+            newTargets[index] = value;
+            setTargets(newTargets);
+        }
     };
 
-    // Functions to add or remove dynamic input fields
-    const addField = (fieldType: "rhosts" | "rports" | "payloads") => {
-        if (fieldType === "rhosts") setRhosts(prev => [...prev, ""]);
-        if (fieldType === "rports") setRports(prev => [...prev, "80"]);
-        if (fieldType === "payloads") setPayloads(prev => [...prev, ""]);
+    // Handle Select Exploit Change
+    const handleSelectExploitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selected = Array.from(e.target.selectedOptions, option =>
+            exploits.find((exp: any) => exp.name === option.value)
+        );
+        // Add only if not already selected
+        setSelectedExploits(prevState => [
+            ...prevState,
+            ...selected.filter(exp => !prevState.some(existingExp => existingExp.name === exp.name)),
+        ]);
     };
 
-    const removeField = (index: number, fieldType: "rhosts" | "rports" | "payloads") => {
-        if (fieldType === "rhosts") setRhosts(prev => prev.filter((_, i) => i !== index));
-        if (fieldType === "rports") setRports(prev => prev.filter((_, i) => i !== index));
-        if (fieldType === "payloads") setPayloads(prev => prev.filter((_, i) => i !== index));
+    // Handle Select Payload Change
+    const handleSelectPayloadChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selected = Array.from(e.target.selectedOptions, option => ({
+            name: option.value,
+        }));
+        // Add only if not already selected
+        setSelectedPayloads(prevState => [
+            ...prevState,
+            ...selected.filter(payload => !prevState.some(existingPayload => existingPayload.name === payload.name)),
+        ]);
     };
-
-    // Ensure that the form is not rendered until the component is mounted on the client
-    if (!isClient) return null;
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-r from-gray-900 to-black text-green-400 font-mono">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-900 text-white">
             <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl p-8 space-y-6">
-                <div className="text-center">
-                    <h1 className="text-4xl font-extrabold">MemeSploit Exploit Management</h1>
-                    <p className="mt-2 text-lg">Configure your exploit details below.</p>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Summary</label>
+                {/* Summary Bar */}
+                <div className="bg-gray-700 p-2 rounded-lg mb-6">
+                    {selectedExploits.length > 0 && (
+                        <div className="text-green-300">Exploit(s): {selectedExploits.map(exp => exp.name).join(", ")}</div>
+                    )}
+                    {selectedPayloads.length > 0 && (
+                        <div className="text-blue-300">Payload(s): {selectedPayloads.map(payload => payload.name).join(", ")}</div>
+                    )}
+                    {targets.length > 0 && (
+                        <div className="text-red-300">Target(s): {targets.join(", ")}</div>
+                    )}
+                    <div className="text-purple-300">Thread(s): {threads}</div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Exploit Selection (Multiple) */}
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Select Exploits</label>
-                        <Select
-                            isMulti
-                            options={exploits.map((exploit) => ({ label: exploit.name, value: exploit._id }))}
-                            value={selectedExploits.map((exploit) => ({ label: exploit.name, value: exploit._id }))}
-                            onChange={(selected) => {
-                                setSelectedExploits(
-                                    selected.map((item) => exploits.find((exp) => exp._id === item.value))
-                                );
-                            }}
-                            className="mt-2 p-4 border border-green-500 rounded-md focus:ring-2 focus:ring-green-500 w-full"
-                        />
-                    </div>
+                    {/* CVE Input */}
+                    <InputFieldComponent label="CVE Number" value={cve} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCve(e.target.value)} placeholder="CVE-2023-XXXX" />
+                    <button type="button" onClick={() => fetchCveDetails(cve)} className="py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 w-full sm:w-auto">
+                        Fetch Exploit
+                    </button>
 
-                    {/* Threads Field */}
-                    <div>
-                        <label className="block text-sm font-medium text-green-200">No. of Threads (Number of shells running)</label>
-                        <input
-                            type="number"
-                            value={threads}
-                            onChange={(e) => setThreads(Number(e.target.value))}
-                            className="w-full p-4 border border-green-500 rounded-md shadow-sm focus:ring-2 focus:ring-green-500"
-                            min={1}
-                        />
-                    </div>
+                    {/* Select Multiple Exploits */}
+                    <SelectListComponent
+                        label="Select Exploits"
+                        options={[...new Set(exploits.map((exp) => exp.name))]} // Remove duplicates in the options
+                        value={selectedExploits.map((exp: any) => exp.name)}
+                        onChange={handleSelectExploitChange}
+                    />
 
-                    {/* Dynamic RHOST Fields */}
-                    <div>
-                        <label className="block text-sm font-medium text-green-200">Target IP Address (RHOST)</label>
-                        {rhosts.map((rhost, index) => (
-                            <div key={index} className="flex items-center space-x-2 mb-2">
+                    {/* Select Multiple Payloads */}
+                    <SelectListComponent
+                        label="Select Payloads"
+                        options={[...new Set(exploits.map(exp => exp.fullname))]} // Remove duplicates in the options
+                        value={selectedPayloads.map((payload: any) => payload.name)}
+                        onChange={handleSelectPayloadChange}
+                    />
+
+                    {/* Targets Input */}
+                    <div className="space-y-4">
+                        <label className="block text-sm font-medium mb-2 text-gray-300">Targets (IP:Port)</label>
+                        {targets.map((target, index) => (
+                            <div key={index} className="flex space-x-2">
                                 <input
                                     type="text"
-                                    value={rhost}
-                                    onChange={(e) =>
-                                        setRhosts(rhosts.map((item, i) => (i === index ? e.target.value : item)))
-                                    }
-                                    className="p-4 border border-green-500 rounded-md shadow-sm w-full"
-                                    placeholder="e.g. 192.168.1.1 or 192.168.1.1-192.168.1.100"
-                                    required
+                                    value={target}
+                                    onChange={(e) => handleTargetChange(index, e.target.value)}
+                                    className="w-full p-2 border border-gray-600 rounded-lg shadow-sm bg-gray-700 text-white"
+                                    placeholder={`Target ${index + 1}`}
                                 />
-                                {rhosts.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => removeField(index, "rhosts")}
-                                        className="text-red-500 hover:text-red-700"
-                                    >
-                                        Remove
-                                    </button>
-                                )}
                             </div>
                         ))}
-                        <button
-                            type="button"
-                            onClick={() => addField("rhosts")}
-                            className="text-blue-500 hover:text-blue-700"
-                        >
-                            Add RHOST
+                        <button type="button" onClick={addTarget} className="py-2 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+                            Add Target
                         </button>
                     </div>
 
-                    {/* Dynamic RPORT Fields */}
-                    <div>
-                        <label className="block text-sm font-medium text-green-200">Target Port (RPORT)</label>
-                        {rports.map((rport, index) => (
-                            <div key={index} className="flex items-center space-x-2 mb-2">
-                                <input
-                                    type="text"
-                                    value={rport}
-                                    onChange={(e) =>
-                                        setRports(rports.map((item, i) => (i === index ? e.target.value : item)))
-                                    }
-                                    className="p-4 border border-green-500 rounded-md shadow-sm w-full"
-                                    placeholder="e.g. 80"
-                                    required
-                                />
-                                {rports.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => removeField(index, "rports")}
-                                        className="text-red-500 hover:text-red-700"
-                                    >
-                                        Remove
-                                    </button>
-                                )}
-                            </div>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={() => addField("rports")}
-                            className="text-blue-500 hover:text-blue-700"
-                        >
-                            Add RPORT
-                        </button>
-                    </div>
+                    {/* Threads Input */}
+                    <InputFieldComponent label="Threads" value={threads} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setThreads(Number(e.target.value))} type="number" placeholder="Threads" />
 
-                    {/* Dynamic Payload Fields */}
-                    <div>
-                        <label className="block text-sm font-medium text-green-200">Select Payloads</label>
-                        {payloads.map((payload, index) => (
-                            <div key={index} className="flex items-center space-x-2 mb-2">
-                                <input
-                                    type="text"
-                                    value={payload}
-                                    onChange={(e) =>
-                                        setPayloads(payloads.map((item, i) => (i === index ? e.target.value : item)))
-                                    }
-                                    className="p-4 border border-green-500 rounded-md shadow-sm w-full"
-                                    placeholder="e.g. windows/meterpreter/reverse_tcp"
-                                    required
-                                />
-                                {payloads.length > 1 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => removeField(index, "payloads")}
-                                        className="text-red-500 hover:text-red-700"
-                                    >
-                                        Remove
-                                    </button>
-                                )}
-                            </div>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={() => addField("payloads")}
-                            className="text-blue-500 hover:text-blue-700"
-                        >
-                            Add Payload
-                        </button>
-                    </div>
-
-                    {/* Summary of selected settings */}
-                    <div className="mt-4 text-lg font-semibold">
-                        <p>Selected Exploits: {selectedExploits.map((exp) => exp.name).join(", ")}</p>
-                    </div>
-
-                    {/* Form Submission */}
-                    <div className="flex items-center justify-center space-x-4">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-500"
-                        >
-                            {loading ? "Submitting..." : "Submit"}
-                        </button>
-                    </div>
-
-                    {/* Error/SUCCESS Message */}
-                    {message && (
-                        <div className={`mt-4 text-lg font-semibold ${message.includes("Error") ? "text-red-500" : "text-green-500"}`}>
-                            {message}
-                        </div>
-                    )}
+                    {/* Submit Button */}
+                    <button type="submit" className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700" disabled={loading}>
+                        {loading ? "Submitting..." : "Submit"}
+                    </button>
                 </form>
+
+                {/* Message */}
+                {message && (
+                    <div className={`text-center mt-4 ${loading ? 'text-blue-300' : 'text-yellow-400'}`}>
+                        {message}
+                    </div>
+                )}
             </div>
         </div>
     );

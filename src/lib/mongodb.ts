@@ -13,6 +13,8 @@ if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
 	);
 }
 
+console.log(uri);
+
 const options = { appName: 'devrel.template.nextjs' };
 
 let clientPromise: MongoClient;
