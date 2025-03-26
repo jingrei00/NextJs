@@ -1,10 +1,12 @@
 import { MongoClient } from 'mongodb';
 
-// Ensure that the MongoDB URI is provided in the environment variables
-const uri = process.env.MONGODB_URI;
+// Hardcode the MongoDB URI if it's not provided through environment variables
+const uri =
+	process.env.MONGODB_URI ||
+	'mongodb+srv://memesploit:LZ6LqxuMFutyTkHm@cluster0.kabe7.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0';
 
 if (!uri) {
-	throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
+	throw new Error('Invalid/Missing MongoDB URI');
 }
 
 const options = { appName: 'devrel.template.nextjs' };
