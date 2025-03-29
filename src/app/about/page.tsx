@@ -1,49 +1,121 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
-import { useState, useEffect, useCallback } from "react";
+'use client';
+
+import { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef } from "react";
 
 // Input Field Component
-const InputFieldComponent = ({ label, value, onChange, placeholder, type = "text" }: any) => (
-    <div className="w-full">
-        <label className="block text-sm font-medium mb-2 text-gray-300">{label}</label>
+interface InputFieldProps {
+    label: string;
+    value: string;
+    onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+    placeholder: string;
+    type?: string;
+}
+
+const InputFieldComponent: React.FC<InputFieldProps> = ({ label, value, onChange, placeholder, type = "text" }) => (
+    <div className="w-full mb-4">
+        <label className="block text-sm font-medium mb-2 text-gray-700">{label}</label>
         <input
             type={type}
             value={value}
             onChange={onChange}
-            className="w-full p-2 border border-gray-600 rounded-lg shadow-sm bg-gray-700 text-white focus:ring-2 focus:ring-green-400"
+            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             placeholder={placeholder}
         />
     </div>
 );
 
-// Select List Component for Multiple Options
-const SelectListComponent = ({ label, options, value, onChange }: any) => (
-    <div className="w-full">
-        <label className="block text-sm font-medium mb-2 text-gray-300">{label}</label>
-        <select
-            multiple
-            value={value}
-            onChange={onChange}
-            className="w-full p-2 border border-gray-600 rounded-lg shadow-sm bg-gray-700 text-white focus:ring-2 focus:ring-green-400"
-        >
-            {options.map((option: any, index: number) => (
-                <option key={index} value={option}>
-                    {option}
-                </option>
-            ))}
-        </select>
-    </div>
-);
+// Custom Searchable Dropdown Component
+interface SearchableDropdownProps {
+    label: string;
+    options: string[];
+    onSelect: (option: string) => void;
+    isOpen: boolean;
+    setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    closeOtherDropdowns: () => void;
+}
+
+const SearchableDropdown: React.FC<SearchableDropdownProps> = ({ label, options, onSelect, isOpen, setIsOpen, closeOtherDropdowns }) => {
+    const [searchTerm, setSearchTerm] = useState<string>("");
+    const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+    const uniqueOptions = Array.from(new Set(options));
+
+    const filteredOptions = uniqueOptions.filter(option =>
+        option.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleOptionClick = (option: string) => {
+        onSelect(option);
+        setSearchTerm(""); // Clear input field after selection
+        setIsOpen(false); // Close dropdown on selection
+    };
+
+    const handleFocus = () => {
+        closeOtherDropdowns(); // Close other dropdowns when this one gets focus
+        setIsOpen(true); // Open current dropdown
+    };
+
+    const handleClickOutside = useCallback((event: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            setIsOpen(false);
+        }
+    }, [setIsOpen]);
+
+    useEffect(() => {
+        document.addEventListener("click", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("click", handleClickOutside);
+        };
+    }, [handleClickOutside]);
+
+    return (
+        <div className="relative w-full mb-4" ref={dropdownRef}>
+            <label className="block text-sm font-medium mb-2 text-gray-700">{label}</label>
+            <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={handleFocus}
+                className="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                placeholder="Search..."
+            />
+            {isOpen && filteredOptions.length > 0 && (
+                <div className="absolute left-0 right-0 bg-white border border-gray-300 rounded-lg mt-1 max-h-60 overflow-y-auto z-10">
+                    {filteredOptions.map((option, index) => (
+                        <div
+                            key={index}
+                            className="p-2 cursor-pointer hover:bg-blue-100"
+                            onClick={() => handleOptionClick(option)}
+                        >
+                            {option}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+interface Exploit {
+    name: string;
+    platform: string;
+    fullname: string;
+}
 
 export default function ExploitForm() {
-    const [exploits, setExploits] = useState<any[]>([]);
-    const [selectedExploits, setSelectedExploits] = useState<any[]>([]);
-    const [selectedPayloads, setSelectedPayloads] = useState<any[]>([]);
-    const [targets, setTargets] = useState<string[]>(["192.168.1.1"]);
-    const [cve, setCve] = useState("");
-    const [threads, setThreads] = useState(1);
-    const [message, setMessage] = useState(" ");
-    const [loading, setLoading] = useState(false);
+    const [exploits, setExploits] = useState<Exploit[]>([]);
+    const [selectedExploits, setSelectedExploits] = useState<string[]>([]);
+    const [selectedPayloads, setSelectedPayloads] = useState<string[]>([]);
+    const [selectedPlatform, setSelectedPlatforms] = useState<string[]>([]);
+    const [targets, setTargets] = useState<string[]>([]);
+    const [threads, setThreads] = useState<number>(1);
+    const [message, setMessage] = useState<string>("");
+
+    // Dropdown open/close states
+    const [platformDropdownOpen, setPlatformDropdownOpen] = useState<boolean>(false);
+    const [exploitDropdownOpen, setExploitDropdownOpen] = useState<boolean>(false);
+    const [payloadDropdownOpen, setPayloadDropdownOpen] = useState<boolean>(false);
 
     // Fetch Exploits from the API
     useEffect(() => {
@@ -53,42 +125,23 @@ export default function ExploitForm() {
                 const data = await res.json();
                 if (res.ok) setExploits(data);
                 else setMessage("Error fetching exploits");
-            } catch {
-                setMessage("Error fetching exploits");
+            } catch (error) {
+                const typedError = error as Error;
+                setMessage("Error fetching exploits: " + typedError.message);
             }
         };
         fetchExploits();
     }, []);
 
-    // Fetch Exploits based on CVE Number
-    const fetchCveDetails = async (cveNumber: string) => {
-        try {
-            const res = await fetch(`/api/exploits/${cveNumber}`);
-            const data = await res.json();
-            if (res.ok && data) {
-                const matchingExploits = exploits.filter(exp =>
-                    exp.references?.includes(cveNumber.trim().toUpperCase())
-                );
-                setSelectedExploits(matchingExploits);
-            } else {
-                setSelectedExploits([]);
-            }
-        } catch {
-            setSelectedExploits([]);
-        }
-    };
-
     // Handle Form Submission
-    const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setMessage("");
-        setLoading(true);
 
         const exploitData = {
-            exploits: selectedExploits.map((exp: any) => exp.name),
-            cve,
+            exploits: selectedExploits,
             targets,
-            payloads: selectedPayloads.map((payload: any) => payload.name),
+            payloads: selectedPayloads,
             threads,
         };
 
@@ -99,127 +152,205 @@ export default function ExploitForm() {
                 body: JSON.stringify(exploitData),
             });
             const data = await res.json();
-            setLoading(false);
             setMessage(res.ok ? "Exploits executed successfully!" : `Error: ${data.error}`);
-        } catch {
-            setLoading(false);
-            setMessage("Submission failed. Please try again.");
+        } catch (error) {
+            const typedError = error as Error;
+            setMessage("Submission failed. Please try again: " + typedError.message);
         }
-    }, [cve, threads, selectedExploits, selectedPayloads, targets]);
+    }, [threads, selectedExploits, selectedPayloads, targets]);
 
-    // Add a new target input field with unique ports
-    const addTarget = () => {
-        const newTarget = `192.168.1.1`; // Default port selection
-        if (!targets.includes(newTarget)) {
-            setTargets([...targets, newTarget]);
-        }
-    };
-
-    // Handle Target Change with unique ports
+    // Handle Target Change
     const handleTargetChange = (index: number, value: string) => {
-        const newTargets = [...targets];
-        if (!newTargets.includes(value)) {
+        setTargets(prevTargets => {
+            const newTargets = [...prevTargets];
             newTargets[index] = value;
-            setTargets(newTargets);
+            return newTargets;
+        });
+    };
+
+    // Clear Individual Selection
+    const clearSelection = (type: "platform" | "exploit" | "payload") => {
+        if (type === "platform") {
+            setSelectedPlatforms([]);
+        } else if (type === "exploit") {
+            setSelectedExploits([]);
+        } else if (type === "payload") {
+            setSelectedPayloads([]);
         }
     };
 
-    // Handle Select Exploit Change
-    const handleSelectExploitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const selected = Array.from(e.target.selectedOptions, option =>
-            exploits.find((exp: any) => exp.name === option.value)
-        );
-        // Add only if not already selected
-        setSelectedExploits(prevState => [
-            ...prevState,
-            ...selected.filter(exp => !prevState.some(existingExp => existingExp.name === exp.name)),
-        ]);
+    const clearAllSelections = () => {
+        setTargets([]);
+        setSelectedPlatforms([]);
+        setSelectedExploits([]);
+        setSelectedPayloads([]);
+        setThreads(1);
     };
 
-    // Handle Select Payload Change
-    const handleSelectPayloadChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const selected = Array.from(e.target.selectedOptions, option => ({
-            name: option.value,
-        }));
-        // Add only if not already selected
-        setSelectedPayloads(prevState => [
-            ...prevState,
-            ...selected.filter(payload => !prevState.some(existingPayload => existingPayload.name === payload.name)),
-        ]);
+    // Handle selection to prevent duplicates
+    const handlePlatformSelect = (value: string) => {
+        if (!selectedPlatform.includes(value)) {
+            setSelectedPlatforms(prev => [...prev, value]);
+            setPlatformDropdownOpen(false); // Close the platform dropdown after selection
+        }
+    };
+
+    const handleExploitSelect = (value: string) => {
+        if (!selectedExploits.includes(value)) {
+            setSelectedExploits(prev => [...prev, value]);
+            setExploitDropdownOpen(false); // Close the exploit dropdown after selection
+        }
+    };
+
+    const handlePayloadSelect = (value: string) => {
+        if (!selectedPayloads.includes(value)) {
+            setSelectedPayloads(prev => [...prev, value]);
+            setPayloadDropdownOpen(false); // Close the payload dropdown after selection
+        }
+    };
+
+    const closeOtherDropdowns = () => {
+        setPlatformDropdownOpen(false);
+        setExploitDropdownOpen(false);
+        setPayloadDropdownOpen(false);
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-gray-900 text-white">
-            <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl p-8 space-y-6">
-                <label className="block text-sm font-medium mb-2 text-gray-300">Summary</label>
-                {/* Summary Bar */}
-                <div className="bg-gray-700 p-2 rounded-lg mb-6">
-                    {selectedExploits.length > 0 && (
-                        <div className="text-green-300">Exploit(s): {selectedExploits.map(exp => exp.name).join(", ")}</div>
-                    )}
-                    {selectedPayloads.length > 0 && (
-                        <div className="text-blue-300">Payload(s): {selectedPayloads.map(payload => payload.name).join(", ")}</div>
-                    )}
-                    {targets.length > 0 && (
-                        <div className="text-red-300">Target(s): {targets.join(", ")}</div>
-                    )}
-                    <div className="text-purple-300">Thread(s): {threads}</div>
+        <div className="min-h-screen flex items-center justify-center p-8 bg-gradient-to-r from-yellow-300 to-green-400">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl p-8 space-y-6">
+                <div className="bg-gray-100 p-4 rounded-lg mb-6">
+                    <div className="text-gray-700">
+                        <strong>Targets: </strong>
+                        {targets.length > 0 ? (
+                            targets.join(", ")
+                        ) : (
+                            <span>No IP address selected</span>
+                        )}
+                    </div>
+                    <div className="text-gray-700">
+                        <strong>Selected Platform: </strong>
+                        {selectedPlatform.length > 0 ? (
+                            selectedPlatform.map((exp, idx) => (
+                                <div key={idx} className="flex justify-between">
+                                    <span>{exp}</span>
+                                    <button onClick={() => clearSelection("platform")} className="text-red-500 hover:text-red-600">Clear</button>
+                                </div>
+                            ))
+                        ) : (
+                            <span>No Platform Selected</span>
+                        )}
+                    </div>
+                    <div className="text-gray-700">
+                        <strong>Selected Exploits: </strong>
+                        {selectedExploits.length > 0 ? (
+                            selectedExploits.map((exp, idx) => (
+                                <div key={idx} className="flex justify-between">
+                                    <span>{exp}</span>
+                                    <button onClick={() => clearSelection("exploit")} className="text-red-500 hover:text-red-600">Clear</button>
+                                </div>
+                            ))
+                        ) : (
+                            <span>No Exploits Selected</span>
+                        )}
+                    </div>
+                    <div className="text-gray-700">
+                        <strong>Selected Payloads: </strong>
+                        {selectedPayloads.length > 0 ? (
+                            selectedPayloads.map((payload, idx) => (
+                                <div key={idx} className="flex justify-between">
+                                    <span>{payload}</span>
+                                    <button onClick={() => clearSelection("payload")} className="text-red-500 hover:text-red-600">Clear</button>
+                                </div>
+                            ))
+                        ) : (
+                            <span>No Payloads Selected</span>
+                        )}
+                    </div>
+                    <div className="text-gray-700">
+                        <strong>Threads: </strong>
+                        {threads}
+                    </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* CVE Input */}
-                    <InputFieldComponent label="CVE Number" value={cve} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCve(e.target.value)} placeholder="CVE-2023-XXXX" />
-                    <button type="button" onClick={() => fetchCveDetails(cve)} className="py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 w-full sm:w-auto">
-                        Fetch Exploit
-                    </button>
+                <button
+                    type="button"
+                    className="w-full p-3 text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none"
+                    onClick={clearAllSelections}
+                >
+                    Clear All
+                </button>
 
-                    {/* Select Multiple Exploits */}
-                    <SelectListComponent
-                        label="Select Exploits"
-                        options={[...new Set(exploits.map((exp) => exp.name))]} // Remove duplicates in the options
-                        value={selectedExploits.map((exp: any) => exp.name)}
-                        onChange={handleSelectExploitChange}
+                <form onSubmit={handleSubmit}>
+                    {/* Select Platform */}
+                    <SearchableDropdown
+                        label="Select Platform"
+                        options={exploits.map(exp => exp.platform)}
+                        onSelect={handlePlatformSelect}
+                        isOpen={platformDropdownOpen}
+                        setIsOpen={setPlatformDropdownOpen}
+                        closeOtherDropdowns={closeOtherDropdowns}
                     />
 
-                    {/* Select Multiple Payloads */}
-                    <SelectListComponent
-                        label="Select Payloads"
-                        options={[...new Set(exploits.map(exp => exp.fullname))]} // Remove duplicates in the options
-                        value={selectedPayloads.map((payload: any) => payload.name)}
-                        onChange={handleSelectPayloadChange}
+                    {/* Select Exploit */}
+                    <SearchableDropdown
+                        label="Select Exploit"
+                        options={exploits.map(exp => exp.name)}
+                        onSelect={handleExploitSelect}
+                        isOpen={exploitDropdownOpen}
+                        setIsOpen={setExploitDropdownOpen}
+                        closeOtherDropdowns={closeOtherDropdowns}
                     />
 
-                    {/* Targets Input */}
-                    <div className="space-y-4">
-                        <label className="block text-sm font-medium mb-2 text-gray-300">Targets (IP:Port)</label>
-                        {targets.map((target, index) => (
-                            <div key={index} className="flex space-x-2">
-                                <input
-                                    type="text"
-                                    value={target}
-                                    onChange={(e) => handleTargetChange(index, e.target.value)}
-                                    className="w-full p-2 border border-gray-600 rounded-lg shadow-sm bg-gray-700 text-white"
-                                    placeholder={`Target ${index + 1}`}
-                                />
-                            </div>
-                        ))}
-                        <button type="button" onClick={addTarget} className="py-2 px-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
-                            Add Target
-                        </button>
-                    </div>
+                    {/* Select Payload */}
+                    <SearchableDropdown
+                        label="Select Payload"
+                        options={exploits.map(exp => exp.fullname)}
+                        onSelect={handlePayloadSelect}
+                        isOpen={payloadDropdownOpen}
+                        setIsOpen={setPayloadDropdownOpen}
+                        closeOtherDropdowns={closeOtherDropdowns}
+                    />
 
-                    {/* Threads Input */}
-                    <InputFieldComponent label="Threads" value={threads} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setThreads(Number(e.target.value))} type="number" placeholder="Threads" />
+                    {/* Target Input Fields */}
+                    {targets.map((target, index) => (
+                        <InputFieldComponent
+                            key={index}
+                            label={`Target ${index + 1}`}
+                            value={target}
+                            onChange={(e) => handleTargetChange(index, e.target.value)}
+                            placeholder="Enter IP or Range (e.g. 192.168.0.1 or 192.168.0.1-192.168.0.100)"
+                        />
+                    ))}
+
+                    {/* Threads */}
+                    <InputFieldComponent
+                        label="Threads"
+                        value={threads.toString()}
+                        onChange={(e) => setThreads(Number(e.target.value))}
+                        placeholder="Enter number of threads"
+                        type="number"
+                    />
 
                     {/* Submit Button */}
-                    <button type="submit" className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700" disabled={loading}>
-                        {loading ? "Submitting..." : "Submit"}
-                    </button>
+                    <div className="flex items-center justify-between mt-6">
+                        <button
+                            type="submit"
+                            className="w-full p-3 text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none"
+                            disabled={message.includes("Error") || message.includes("failed")}
+                        >
+                            {message.includes("Error") ? "Try Again" : "Exploit your target"}
+                        </button>
+                    </div>
                 </form>
 
-                {/* Message */}
+                {/* Hacking Quote */}
+                <div className="text-center text-lg font-semibold text-green-400 mt-6">
+                    <p>The best way to predict the future is to hack it - Jing Rei</p>
+                </div>
+
+                {/* Error or Success Message */}
                 {message && (
-                    <div className={`text-center mt-4 ${loading ? 'text-blue-300' : 'text-yellow-400'}`}>
+                    <div className="mt-6 text-center text-lg font-semibold text-red-500">
                         {message}
                     </div>
                 )}

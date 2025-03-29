@@ -11,7 +11,6 @@ const Navbar: React.FC = () => {
 	return (
 		<nav className="bg-gray-600 text-white shadow-lg relative z-40">
 			<div className="max-w-7xl mx-auto px-6 flex justify-between items-center relative z-50">
-				{/* Logo with Image Icon and Header Text */}
 				<div className="flex items-center space-x-2 z-50">
 					<Image
 						src="/images/icon.png" // Path to your image
