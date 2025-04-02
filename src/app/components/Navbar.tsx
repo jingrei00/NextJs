@@ -8,18 +8,26 @@ import Link from "next/link"; // Import Link for client-side routing
 const Navbar: React.FC = () => {
 	const [isOpen, setIsOpen] = useState<boolean>(false);
 
+	// Ensure the image path is correct
+	const imagePath = "/images/icon.png"; // Check that this path is correct in your environment
+
 	return (
-		<nav className="bg-gray-600 text-white shadow-lg relative z-40">
+		<nav className="bg-gray-900 text-white py-8">
 			<div className="max-w-7xl mx-auto px-6 flex justify-between items-center relative z-50">
 				<div className="flex items-center space-x-2 z-50">
-					<Image
-						src="/images/icon.png" // Path to your image
-						alt="Metasploit Logo"
-						width={90} // Adjust the width of the icon
-						height={90} // Adjust the height of the icon
-						priority={true} // {false} | {true}
-						className="rounded-full" // Optional: gives the image a circular shape
-					/>
+					{/* Check if the image path exists */}
+					{imagePath ? (
+						<Image
+							src={imagePath} // Path to your image
+							alt="Metasploit Logo"
+							width={60} // Adjust the width of the icon
+							height={60} // Adjust the height of the icon
+							priority={true} // {false} | {true}
+							className="rounded-full" // Optional: gives the image a circular shape
+						/>
+					) : (
+						<div className="w-24 h-24 bg-gray-500 rounded-full" />
+					)}
 				</div>
 
 				{/* Desktop Navigation */}
