@@ -128,7 +128,7 @@ const useCveSearch = () => {
             // In a real app, this would be a backend API call
             const cvePattern = /CVE-\d{4}-\d+/i;
             if (!cvePattern.test(cveId)) {
-                setError("Invalid CVE format. Use format: CVE-YYYY-NNNNN");
+                setError("Invalid CVE format. Use format: CVE-YYYY-NNNN");
                 setSearchResults(null);
                 return null;
             }
@@ -368,7 +368,7 @@ export default function ExploitForm() {
                                     type="text"
                                     value={cveSearch}
                                     onChange={(e) => setCveSearch(e.target.value)}
-                                    placeholder="CVE-YYYY-NNNNN"
+                                    placeholder="CVE-YYYY-NNNN"
                                     className="w-full p-2 border border-gray-700 rounded bg-black text-green-400 focus:ring-1 focus:ring-green-500 focus:outline-none font-mono"
                                 />
                             </div>
