@@ -624,7 +624,7 @@ export default function ExploitForm() {
                             type="submit"
                             className="w-full mt-6 p-3 text-black bg-green-500 rounded hover:bg-green-400 focus:outline-none transition-colors font-bold flex items-center justify-center"
                         >
-                            <span>LAUNCH EXPLOIT</span>
+                            <span>Exploit!!! BAM</span>
                         </button>
                     </form>
                 </div>
